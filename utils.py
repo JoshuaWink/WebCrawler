@@ -65,14 +65,21 @@ def save_content(url, text):
 class RobotsParser:
     """Handles fetching and parsing of robots.txt files."""
     
-    def __init__(self, base_url):
-        """Initialize with base URL and fetch robots.txt."""
+    def __init__(self, base_url, ignore_robots=False):
+        """Initialize with base URL and fetch robots.txt.
+        
+        Args:
+            base_url (str): Base URL of the website to crawl
+            ignore_robots (bool): If True, ignores robots.txt rules (default: False)
+        """
         self.base_url = base_url
+        self.ignore_robots = ignore_robots
         self.robots_url = urljoin(base_url, '/robots.txt')
         self.crawl_delay = 0  # Default no delay
         self.rules = {'*': {'disallow': [], 'allow': []}}  # Default all allowed
         self.last_request_time = 0
-        self.fetch_and_parse()
+        if not ignore_robots:
+            self.fetch_and_parse()
     
     def fetch_and_parse(self):
         """Fetch and parse the robots.txt file."""
@@ -113,7 +120,17 @@ class RobotsParser:
                     pass
 
     def is_allowed(self, url):
-        """Check if URL is allowed to be crawled based on robots.txt rules."""
+        """Check if URL is allowed to be crawled based on robots.txt rules.
+        
+        Args:
+            url (str): URL to check against robots.txt rules
+            
+        Returns:
+            bool: True if URL is allowed or if ignore_robots is True
+        """
+        if self.ignore_robots:
+            return True
+            
         path = urlparse(url).path
         
         # First check specific user-agent rules
@@ -152,7 +169,7 @@ class RobotsParser:
 
 # URL Normalization
 def normalize_url(url, params_to_remove=['utm_source', 'session_id']):
-    """Normalizes a URL by removing fragments and specified query parameters.
+    """Normalizes a URL while preserving the exact path and query structure.
     
     Args:
         url (str): The URL to normalize
@@ -161,23 +178,38 @@ def normalize_url(url, params_to_remove=['utm_source', 'session_id']):
             that don't affect page content.
     
     Returns:
-        str: Normalized URL with specified parameters and fragments removed
+        str: Normalized URL with specified parameters removed but path preserved
     """
     try:
+        # Parse the URL to get its components
         parsed_url = urlparse(url)
-        query_params = parse_qs(parsed_url.query)
-
-        # Remove specified parameters
-        query_params = {k: v for k, v in query_params.items() if k not in params_to_remove}
-
-        # Reconstruct the query string
-        new_query = urlencode(query_params, doseq=True)
-
-        # Reconstruct the URL, removing the fragment
-        new_url = urlunparse((parsed_url.scheme, parsed_url.netloc, parsed_url.path,
-                                parsed_url.params, new_query, None))  # None removes the fragment
-
-        return new_url
+        
+        # Only normalize scheme and netloc
+        scheme = parsed_url.scheme.lower()
+        netloc = parsed_url.netloc.lower()
+        
+        # Get the original path and query string
+        path = parsed_url.path
+        query = parsed_url.query
+        
+        # If there are tracking parameters to remove, handle them without re-encoding the entire query
+        if query and params_to_remove:
+            # Split the query string but preserve the exact parameter values
+            params = dict(param.split('=', 1) if '=' in param else (param, '')
+                        for param in query.split('&') if param)
+            
+            # Remove unwanted parameters
+            params = {k: v for k, v in params.items() if k not in params_to_remove}
+            
+            # Reconstruct query string preserving original format
+            query = '&'.join(f"{k}={v}" if v else k for k, v in params.items())
+        
+        # Reconstruct the URL
+        normalized = f"{scheme}://{netloc}{path}"
+        if query:
+            normalized += f"?{query}"
+            
+        return normalized
     except Exception as e:
         logging.error(f"Error normalizing URL {url}: {e}")
         return url

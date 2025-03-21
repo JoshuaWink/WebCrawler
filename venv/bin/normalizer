@@ -1,5 +1,5 @@
 #!/bin/sh
-'''exec' "/Users/jwink/Documents/GitHub/Ai Tools/WebCrawler/venv/bin/python3" "$0" "$@"
+'''exec' "/Users/joshuawink/Documents/github/Ai Tools/WebCrawler/venv/bin/python3.13" "$0" "$@"
 ' '''
 # -*- coding: utf-8 -*-
 import re

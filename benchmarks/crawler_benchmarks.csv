@@ -1,0 +1,5 @@
+timestamp,target_url,workers,batch_size,scope,depth_limit,max_pages,pages_crawled,elapsed_time,avg_crawl_speed,peak_memory_mb,errors,redirects,total_content_mb,avg_page_size_kb,status_200
+2025-03-21 08:34:30,https://python.langchain.com/docs/introduction/,12,50,https://python.langchain.com/docs/,unlimited,unlimited,2298,156.86522221565247,14.649518660298044,445.15625,9184,748,29.253453254699707,13.03548134587141,11440
+2025-03-21 08:41:01,https://python.langchain.com/docs/introduction/,20,100,https://python.langchain.com/docs/,unlimited,unlimited,3821,138.22734904289246,27.642865369676805,410.4375,41,749,29.253453254699707,7.839711105158989,3821
+2025-03-21 08:58:12,https://python.langchain.com/docs/introduction/,20,100,https://python.langchain.com/docs/,unlimited,unlimited,3821,131.09303188323975,29.147239522259575,475.609375,41,749,0.0,0.0,3821
+2025-03-21 09:07:02,https://python.langchain.com/docs/introduction/,20,100,https://python.langchain.com/docs/,unlimited,unlimited,2298,129.3147690296173,17.77059200000336,471.140625,41,749,46.10970687866211,20.546710114773717,2298

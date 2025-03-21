@@ -58,7 +58,8 @@ class SitemapManager:
         """
         self.visited_urls.add(url)
         self.mapped_count += 1
-        self.update_sitemap_file()
+        # Don't update sitemap file here - too frequent and slow
+        # Instead, we'll update periodically in the main crawler loop
 
     def log_external_link(self, url):
         pass
@@ -124,6 +125,21 @@ class SitemapManager:
             
         filepath = os.path.join(self.output_folder, filename)
         try:
+            # Skip if we have too many nodes - would create an unreadable graph
+            if len(self.visited_urls) > 500:
+                # Create a simplified graph with just counts
+                with open(filepath, "w") as f:
+                    f.write("/* Generated Site Map (Simplified due to large size) */\n")
+                    f.write("digraph SiteMap {\n")
+                    f.write("    /* Summary Information */\n")
+                    f.write(f'    label="Site Map: {len(self.visited_urls)} pages crawled, {len(self.unvisited_urls)} pending";\n')
+                    f.write("    labelloc=t;\n")
+                    f.write("    node1 [label=\"Crawled Pages\", shape=box];\n")
+                    f.write("    node2 [label=\"Pending Pages\", shape=box];\n")
+                    f.write("    node1 -> node2 [style=invis];\n")
+                    f.write("}\n")
+                return
+            
             with open(filepath, "w") as f:
                 # Write header and graph attributes
                 f.write("/* Generated Site Map */\n")
@@ -154,21 +170,27 @@ class SitemapManager:
                     else:
                         f.write(f'    "{url}" [fillcolor=lightblue];\n')
 
-                # Write cross-links
-                f.write("\n    /* Cross-Links to Show Page Interconnections */\n")
-                f.write("    edge [color=red, style=dashed];\n")
-                processed_urls = set()
-                for url in self.visited_urls:
-                    for other_url in self.visited_urls:
-                        if url != other_url and (url, other_url) not in processed_urls and (other_url, url) not in processed_urls:
-                            if url not in self.parent_urls and other_url not in self.parent_urls:
-                                f.write(f'    "{url}" -> "{other_url}";\n')
-                                processed_urls.add((url, other_url))
+                # Write cross-links - LIMIT THIS FOR LARGE SITES
+                # This is often a source of performance issues for large crawls
+                if len(self.visited_urls) < 100:
+                    f.write("\n    /* Cross-Links to Show Page Interconnections */\n")
+                    f.write("    edge [color=red, style=dashed];\n")
+                    processed_urls = set()
+                    for url in self.visited_urls:
+                        for other_url in self.visited_urls:
+                            if url != other_url and (url, other_url) not in processed_urls and (other_url, url) not in processed_urls:
+                                if url not in self.parent_urls and other_url not in self.parent_urls:
+                                    f.write(f'    "{url}" -> "{other_url}";\n')
+                                    processed_urls.add((url, other_url))
 
-                # Write external edges
+                # Write external edges - LIMIT FOR LARGE SITES
+                max_external_edges = 100  # Limit number of external edges in the DOT file
                 f.write("\n    /* External Links */\n")
                 f.write("    node [fillcolor=gold];\n")
-                for (source, target) in self.external_edges:
+                for i, (source, target) in enumerate(self.external_edges):
+                    if i >= max_external_edges:
+                        f.write(f'    /* {len(self.external_edges) - max_external_edges} more external links omitted */\n')
+                        break
                     f.write(f'    "{source}" -> "{target}" [URL="{target}", style=dotted, color=blue];\n')
 
                 f.write("}\n")
@@ -184,4 +206,33 @@ class SitemapManager:
             external_url (str): The external URL that was linked to
         """
         self.external_edges.append((parent_url, external_url))
+        self.update_sitemap_file()
+
+    def add_redirect(self, source_url, target_url):
+        """Records a URL redirect in the sitemap.
+        
+        Args:
+            source_url (str): Original URL that redirected
+            target_url (str): Final URL after redirect
+        """
+        # Mark the source URL as visited if it's not already
+        if source_url not in self.visited_urls:
+            self.visited_urls.add(source_url)
+        
+        # Add parent relationship for the target URL if not already set
+        if target_url not in self.parent_urls:
+            self.parent_urls[target_url] = {
+                'parent': source_url, 
+                'is_external': self.is_external(source_url, target_url)
+            }
+        
+        # If the source URL was in the unvisited queue, replace it with the target URL
+        if source_url in self.unvisited_urls:
+            self.unvisited_urls.remove(source_url)
+        
+        # Add the target URL to unvisited if it's not already in visited or unvisited
+        if target_url not in self.visited_urls and target_url not in self.unvisited_urls:
+            self.unvisited_urls.append(target_url)
+        
+        # Update the sitemap file to reflect the redirect
         self.update_sitemap_file()

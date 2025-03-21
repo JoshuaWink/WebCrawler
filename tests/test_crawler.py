@@ -243,6 +243,19 @@ class TestCrawler(unittest.TestCase):
         self.assertEqual(len(sitemap.page_contents), 1)
         logging.info("Completed test_crawl_duplicate_content")
 
+    def test_crawl_respect_scope(self):
+        """Test that crawl respects the scope URL limit"""
+        sitemap = SitemapManager('http://example.com')
+        scope_url = 'http://example.com/docs'
+        
+        def mock_fetch_page(url):
+            return "<html><body><a href='/outside'>Outside Link</a></body></html>"
+        
+        with patch('crawler.fetch_page', side_effect=mock_fetch_page):
+            crawl('http://example.com/docs/page', sitemap, 'http://example.com', scope_url)
+            # Should not follow the /outside link as it's outside scope
+            self.assertNotIn('http://example.com/outside', sitemap.visited_urls)
+
     @patch('sys.stdout', new_callable=io.StringIO)
     def test_print_cli_output(self, mock_stdout):
         sitemap = SitemapManager()
