@@ -1,4 +1,9 @@
-requests==2.32.3
-beautifulsoup4==4.13.3
+requests==2.31.0
+beautifulsoup4==4.12.2
 xlsxwriter==3.2.2
 responses==0.24.1
+pandas==2.1.0
+pytest==7.4.0
+graphviz==0.20.1
+redis==5.0.1
+playwright==1.45.0
